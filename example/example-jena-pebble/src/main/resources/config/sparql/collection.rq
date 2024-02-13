@@ -1,0 +1,15 @@
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT *
+WHERE {
+  ?s a skos:Collection ;
+    rdfs:label ?label ;
+    skos:member ?member .
+
+  ?member skos:notation ?notation .
+
+  OPTIONAL {
+    ?member skos:definition ?definition .
+    FILTER (langMatches(lang(?definition), "en"))
+  }
+}
