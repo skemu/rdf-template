@@ -3,8 +3,8 @@ package com.skemu.rdf.rdftemplate.dataresolver;
 import com.skemu.rdf.rdftemplate.config.ConfigResourceLoaders;
 import com.skemu.rdf.rdftemplate.config.DataSource;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.jena.query.Query;
@@ -62,7 +62,7 @@ public class JenaDataResolver implements DataSourceResolver {
             while (resultSet.hasNext()) {
                 QuerySolution querySolution = resultSet.nextSolution();
                 Iterator<String> varNames = querySolution.varNames();
-                Map<String, String> row = new HashMap<>();
+                Map<String, String> row = new LinkedHashMap<>();
                 while (varNames.hasNext()) {
                     String name = varNames.next();
                     row.put(name, querySolution.get(name).toString());

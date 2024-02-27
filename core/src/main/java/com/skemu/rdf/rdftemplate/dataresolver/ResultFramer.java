@@ -1,5 +1,6 @@
 package com.skemu.rdf.rdftemplate.dataresolver;
 
+import static com.skemu.rdf.rdftemplate.collectors.Collectors.toUnmodifiableLinkedHashMap;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_PREFIX;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_TYPE;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_TYPE_STRING;
@@ -10,11 +11,11 @@ import static java.util.stream.Collectors.toList;
 
 import com.skemu.rdf.rdftemplate.config.DataSource;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -25,7 +26,7 @@ public class ResultFramer {
 
     public static final String MISSING_PROP_RESULT_FRAME = "Missing %s for resultFrame: %s";
 
-    public static Map<List<String>, Object> map(
+    public static Map<List<String>, Map<String, Object>> map(
             List<Map<String, String>> resolved,
             Map<String, Object> resultFrame,
             Map<String, String> namespacePrefixes) {
@@ -33,7 +34,7 @@ public class ResultFramer {
 
         var resultsByKey = resolved.stream()
                 .filter(map -> !extractKey(nodeKey, map).isEmpty())
-                .collect(groupingBy(map -> extractKey(nodeKey, map), toList()));
+                .collect(groupingBy(map -> extractKey(nodeKey, map), LinkedHashMap::new, toList()));
 
         return resultsByKey.entrySet().stream()
                 .map(rowGroupEntry -> entry(
@@ -42,8 +43,8 @@ public class ResultFramer {
                                 .map(entry ->
                                         mapResultFrameProperty(rowGroupEntry.getValue(), entry, namespacePrefixes))
                                 .filter(Objects::nonNull)
-                                .collect(Collectors.toUnmodifiableMap(Entry::getKey, Entry::getValue))))
-                .collect(Collectors.toUnmodifiableMap(Entry::getKey, Entry::getValue));
+                                .collect(toUnmodifiableLinkedHashMap(Entry::getKey, Entry::getValue))))
+                .collect(toUnmodifiableLinkedHashMap(Entry::getKey, Entry::getValue));
     }
 
     @SuppressWarnings("unchecked")
@@ -148,17 +149,10 @@ public class ResultFramer {
     }
 
     private static List<String> extractKey(List<String> key, Map<String, String> row) {
-        var extractedKey = row.entrySet().stream()
+        return row.entrySet().stream()
                 .filter(entry -> key.contains(entry.getKey()))
                 .map(Entry::getValue)
                 .toList();
-
-        if (extractedKey.isEmpty()) {
-            return extractedKey;
-            //            throw new RdfTemplateException(String.format("Could not find key %s in result set.", key));
-        }
-
-        return extractedKey;
     }
 
     private static List<String> getNodeKey(Map<String, Object> resultFrameNode) {

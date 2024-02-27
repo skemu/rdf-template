@@ -1,9 +1,9 @@
 package com.skemu.rdf.rdftemplate;
 
+import static com.skemu.rdf.rdftemplate.collectors.Collectors.toUnmodifiableLinkedHashMap;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toUnmodifiableMap;
 
 import com.skemu.rdf.rdftemplate.config.ConfigResourceLoaders;
 import com.skemu.rdf.rdftemplate.config.DataSource;
@@ -54,7 +54,7 @@ public class RdfTemplateProcessor {
     public void process() {
         Map<String, Object> dataContext = rdfTemplateConfig.getDataSources().stream()
                 .map(dataSource -> resolveForContext(dataSource, rdfTemplateConfig.getNamespacePrefixes()))
-                .collect(toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+                .collect(toUnmodifiableLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
 
         rdfTemplateConfig.getTemplates().forEach(template -> processTemplate(template, dataContext));
     }

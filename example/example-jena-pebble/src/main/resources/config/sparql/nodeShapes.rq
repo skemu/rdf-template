@@ -1,4 +1,5 @@
 PREFIX sh: <http://www.w3.org/ns/shacl#>
+
 SELECT ?targetClass ?propertyShape ?property ?propertyName ?description ?class ?datatype ?nodeKind ?minCount ?maxCount
 WHERE {
   ?nodeShape a sh:NodeShape;
@@ -34,3 +35,4 @@ WHERE {
 
   BIND(STR(?max) as ?maxCount)
 }
+ORDER BY ?propertyName

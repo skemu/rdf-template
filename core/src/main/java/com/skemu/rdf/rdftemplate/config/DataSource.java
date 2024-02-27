@@ -3,11 +3,13 @@ package com.skemu.rdf.rdftemplate.config;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.jackson.Jacksonized;
 
 @Builder(toBuilder = true)
 @Jacksonized
 @Getter
+@ToString
 public class DataSource {
 
     public static final String FRAME_NODE_KEY = "_key";

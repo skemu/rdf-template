@@ -7,11 +7,13 @@ import java.util.Map;
 import java.util.Set;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.jackson.Jacksonized;
 
 @Builder
 @Jacksonized
 @Getter
+@ToString
 public class RdfTemplateConfig {
 
     private Map<String, String> namespacePrefixes;
