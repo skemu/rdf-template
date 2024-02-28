@@ -7,6 +7,9 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
@@ -16,6 +19,7 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.util.ModelCollector.UnionModelCollector;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -29,20 +33,16 @@ public class JenaDataResolver implements DataSourceResolver {
     @Override
     public List<Map<String, String>> resolve(DataSource dataSource) {
         Model model = null;
-        var dataSourceSource = dataSource.getSource();
+        var dataSourceSources = dataSource.getSources();
 
-        if (dataSource.getSource() != null) {
-            var sourceResource = ConfigResourceLoaders.getResource(dataSourceSource);
-
-            if (sourceResource.isEmpty()) {
-                throw new DataResolverException(String.format("Could not find source %s", dataSourceSource));
-            }
-
-            model = ConfigResourceLoaders.getResource(dataSourceSource).stream()
+        if (!dataSourceSources.isEmpty()) {
+            model = toSourceResources(dataSourceSources)
                     .map(ConfigResourceLoaders::resolveResourceUriStringsDeeply)
                     .flatMap(List::stream)
                     .map(RDFDataMgr::loadModel)
                     .collect(new UnionModelCollector());
+        } else {
+            throw new DataResolverException(String.format("No source found for data source %s", dataSource.getName()));
         }
 
         var query = ConfigResourceLoaders.getResource(dataSource.getLocation())
@@ -52,6 +52,20 @@ public class JenaDataResolver implements DataSourceResolver {
                         new DataResolverException(String.format("Could not find query %s", dataSource.getLocation())));
 
         return executeQuery(model, query);
+    }
+
+    private Stream<Resource> toSourceResources(Set<String> sources) {
+        return sources.stream()
+                .map(source -> {
+                    var sourceResource = ConfigResourceLoaders.getResource(source);
+
+                    if (sourceResource.isEmpty()) {
+                        throw new DataResolverException(String.format("Could not find source %s", source));
+                    }
+
+                    return sourceResource;
+                })
+                .flatMap(Optional::stream);
     }
 
     private List<Map<String, String>> executeQuery(Model model, Query query) {

@@ -1,8 +1,12 @@
 package com.skemu.rdf.rdftemplate.config;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
+import java.util.Set;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Singular;
 import lombok.ToString;
 import lombok.extern.jackson.Jacksonized;
 
@@ -30,7 +34,10 @@ public class DataSource {
 
     private String location;
 
-    private String source;
+    @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+    @JsonProperty("source")
+    @Singular
+    private Set<String> sources;
 
     @Builder.Default
     private Map<String, Object> resultFrame = Map.of();
