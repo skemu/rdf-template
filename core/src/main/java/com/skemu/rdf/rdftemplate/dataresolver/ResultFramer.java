@@ -1,6 +1,7 @@
 package com.skemu.rdf.rdftemplate.dataresolver;
 
 import static com.skemu.rdf.rdftemplate.collectors.Collectors.toUnmodifiableLinkedHashMap;
+import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_ORDER_BY;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_PREFIX;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_TYPE;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_TYPE_STRING;
@@ -11,6 +12,7 @@ import static java.util.stream.Collectors.toList;
 
 import com.skemu.rdf.rdftemplate.config.DataSource;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,15 +38,24 @@ public class ResultFramer {
                 .filter(map -> !extractKey(nodeKey, map).isEmpty())
                 .collect(groupingBy(map -> extractKey(nodeKey, map), LinkedHashMap::new, toList()));
 
-        return resultsByKey.entrySet().stream()
+        var orderBy = getOrderBy(resultFrame);
+
+        var unorderedResults = resultsByKey.entrySet().stream()
                 .map(rowGroupEntry -> entry(
                         rowGroupEntry.getKey(),
                         resultFrame.entrySet().stream()
                                 .map(entry ->
                                         mapResultFrameProperty(rowGroupEntry.getValue(), entry, namespacePrefixes))
                                 .filter(Objects::nonNull)
-                                .collect(toUnmodifiableLinkedHashMap(Entry::getKey, Entry::getValue))))
-                .collect(toUnmodifiableLinkedHashMap(Entry::getKey, Entry::getValue));
+                                .collect(toUnmodifiableLinkedHashMap(Entry::getKey, Entry::getValue))));
+
+        if (orderBy != null) {
+            return unorderedResults
+                    .sorted(orderBy)
+                    .collect(toUnmodifiableLinkedHashMap(Entry::getKey, Entry::getValue));
+        }
+
+        return unorderedResults.collect(toUnmodifiableLinkedHashMap(Entry::getKey, Entry::getValue));
     }
 
     @SuppressWarnings("unchecked")
@@ -61,10 +72,12 @@ public class ResultFramer {
             if (frameNode instanceof String expr) {
                 valueExpression = expr;
                 valueType = FRAME_NODE_TYPE_STRING;
-            } else if (frameNode instanceof Map<?, ?> valueMappingNode) {
-                valueExpression = getFrameNodePropertyValue(valueMappingNode.get(FRAME_NODE_VALUE), frameNode);
-                valueType = getFrameNodePropertyValueOrDefault(
-                        valueMappingNode.get(FRAME_NODE_TYPE), frameNode, FRAME_NODE_TYPE_STRING);
+            } else if (frameNode instanceof Map<?, ?>) {
+                var valueMappingNode = (Map<String, Object>) frameNode;
+
+                valueExpression = getFrameNodePropertyValue(FRAME_NODE_VALUE, valueMappingNode);
+                valueType =
+                        getFrameNodePropertyValueOrDefault(FRAME_NODE_TYPE, valueMappingNode, FRAME_NODE_TYPE_STRING);
                 var prefixValue = valueMappingNode.get(FRAME_NODE_PREFIX);
                 prefix = switch (prefixValue) {
                     case null -> false;
@@ -86,8 +99,8 @@ public class ResultFramer {
     }
 
     private static String getFrameNodePropertyValueOrDefault(
-            Object propertyValue, Object frameNode, String defaultResult) {
-        var result = getFrameNodePropertyValue(propertyValue, frameNode, true);
+            String property, Map<String, Object> frameNode, String defaultResult) {
+        var result = getFrameNodePropertyValue(property, frameNode, true);
 
         if (result == null) {
             return defaultResult;
@@ -96,11 +109,13 @@ public class ResultFramer {
         return result;
     }
 
-    private static String getFrameNodePropertyValue(Object propertyValue, Object frameNode) {
-        return getFrameNodePropertyValue(propertyValue, frameNode, false);
+    private static String getFrameNodePropertyValue(String property, Map<String, Object> frameNode) {
+        return getFrameNodePropertyValue(property, frameNode, false);
     }
 
-    private static String getFrameNodePropertyValue(Object propertyValue, Object frameNode, boolean nullable) {
+    private static String getFrameNodePropertyValue(String property, Map<String, Object> frameNode, boolean nullable) {
+        var propertyValue = frameNode.get(property);
+
         if (propertyValue instanceof String value) {
             return value;
         } else if (propertyValue == null) {
@@ -112,6 +127,29 @@ public class ResultFramer {
         } else {
             throw new DataResolverException(
                     String.format(INVALID_RESULT_FRAME, FRAME_NODE_VALUE, propertyValue, frameNode));
+        }
+    }
+
+    private static Comparator<Entry<List<String>, Map<String, Object>>> getOrderBy(Map<String, Object> frameNode) {
+        var orderBy = getFrameNodePropertyValue(FRAME_NODE_ORDER_BY, frameNode, true);
+
+        if (orderBy == null) {
+            return null;
+        }
+
+        if (orderBy.startsWith("-")) {
+            return Comparator.comparing(
+                            (Entry<List<String>, Map<String, Object>> entry) ->
+                                    getFrameNodePropertyValue(orderBy.substring(1), entry.getValue()),
+                            String.CASE_INSENSITIVE_ORDER)
+                    .reversed();
+        } else if (orderBy.startsWith("+")) {
+            return Comparator.comparing(
+                    (Entry<List<String>, Map<String, Object>> entry) ->
+                            getFrameNodePropertyValue(orderBy.substring(1), entry.getValue()),
+                    String.CASE_INSENSITIVE_ORDER);
+        } else {
+            throw new DataResolverException(String.format("%s should  start with '+' or '-'", FRAME_NODE_ORDER_BY));
         }
     }
 
@@ -133,7 +171,9 @@ public class ResultFramer {
             if (expressionResult.isEmpty()) {
                 return null;
             } else {
-                return String.join(", ", expressionResult);
+                // TODO introduce strategy for handling multiple values?
+                // return String.join(", ", expressionResult);
+                return expressionResult.getFirst();
             }
         }
         return expressionResult;

@@ -28,6 +28,8 @@ public class DataSource {
 
     public static final String FRAME_NODE_PREFIX = "_prefix";
 
+    public static final String FRAME_NODE_ORDER_BY = "_orderBy";
+
     private String name;
 
     private String resolver;
