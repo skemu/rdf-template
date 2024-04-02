@@ -1,6 +1,7 @@
 package com.skemu.rdf.rdftemplate.dataresolver;
 
 import static com.skemu.rdf.rdftemplate.collectors.Collectors.toUnmodifiableLinkedHashMap;
+import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_MAP;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_ORDER_BY;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_PREFIX;
 import static com.skemu.rdf.rdftemplate.config.DataSource.FRAME_NODE_TYPE;
@@ -20,7 +21,9 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ResultFramer {
 
@@ -33,6 +36,10 @@ public class ResultFramer {
             Map<String, Object> resultFrame,
             Map<String, String> namespacePrefixes) {
         var nodeKey = getNodeKey(resultFrame);
+
+        if (resolved.isEmpty()) {
+            return Map.of();
+        }
 
         var resultsByKey = resolved.stream()
                 .filter(map -> !extractKey(nodeKey, map).isEmpty())
@@ -69,6 +76,7 @@ public class ResultFramer {
             String valueExpression;
             String valueType;
             boolean prefix = false;
+            String map = "";
             if (frameNode instanceof String expr) {
                 valueExpression = expr;
                 valueType = FRAME_NODE_TYPE_STRING;
@@ -84,12 +92,13 @@ public class ResultFramer {
                     case Boolean prefixBoolean -> prefixBoolean;
                     default -> throw new DataResolverException(
                             String.format(INVALID_RESULT_FRAME, FRAME_NODE_PREFIX, prefixValue, frameNode));};
+                map = getFrameNodePropertyValue(FRAME_NODE_MAP, valueMappingNode, true);
             } else {
                 throw new DataResolverException(String.format("Invalid resultFrame: %s", frameNode));
             }
 
             var resolvedExpr =
-                    resolvePropertyExpression(valueExpression, rowGroup, namespacePrefixes, valueType, prefix);
+                    resolvePropertyExpression(valueExpression, rowGroup, namespacePrefixes, valueType, prefix, map);
             if (resolvedExpr != null) {
                 return entry(entry.getKey(), resolvedExpr);
             }
@@ -158,7 +167,8 @@ public class ResultFramer {
             List<Map<String, String>> rowGroup,
             Map<String, String> namespacePrefixes,
             String valueType,
-            boolean prefix) {
+            boolean prefix,
+            String map) {
 
         var expressionResult = rowGroup.stream()
                 .map(row -> row.get(expr))
@@ -171,9 +181,12 @@ public class ResultFramer {
             if (expressionResult.isEmpty()) {
                 return null;
             } else {
-                // TODO introduce strategy for handling multiple values?
-                // return String.join(", ", expressionResult);
-                return expressionResult.getFirst();
+                if (map == null || map.isEmpty()) {
+                    return expressionResult.getFirst();
+                }
+                if (map.equals("join")) {
+                    return String.join(", ", expressionResult);
+                }
             }
         }
         return expressionResult;

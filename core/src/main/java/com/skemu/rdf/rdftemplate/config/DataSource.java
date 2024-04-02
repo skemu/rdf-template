@@ -30,6 +30,8 @@ public class DataSource {
 
     public static final String FRAME_NODE_ORDER_BY = "_orderBy";
 
+    public static final String FRAME_NODE_MAP = "_map";
+
     private String name;
 
     private String resolver;

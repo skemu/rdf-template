@@ -17,9 +17,11 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class RdfTemplateProcessor {
     private final RdfTemplateConfig rdfTemplateConfig;
@@ -61,6 +63,11 @@ public class RdfTemplateProcessor {
 
     private Map.Entry<String, Object> resolveForContext(DataSource dataSource, Map<String, String> namespacePrefixes) {
         var resolved = dataSourceResolverRegistry.get(dataSource.getResolver()).resolve(dataSource);
+
+        if (resolved.isEmpty()) {
+            LOG.info("No data found for data source {}. Returning empty result.", dataSource.getName());
+            return Map.entry(dataSource.getName(), List.of());
+        }
 
         Object dataSourceResult;
         if (!dataSource.getResultFrame().isEmpty()) {
